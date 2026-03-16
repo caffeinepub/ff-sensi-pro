@@ -18,11 +18,15 @@ export interface PaymentRequest {
     paymentReference: string;
 }
 export interface SensitivitySettings {
-    dpi: bigint;
-    deviceDetails: DeviceDetails;
-    gameBoosterTips: string;
-    sensitivity: bigint;
+    generalSensitivity: bigint;
+    noScopeSensitivity: bigint;
+    redDotSensitivity: bigint;
+    scope2xSensitivity: bigint;
+    scope4xSensitivity: bigint;
+    awmScopeSensitivity: bigint;
     fireButtonSize: bigint;
+    gameBoosterTips: string;
+    deviceDetails: DeviceDetails;
 }
 export interface DeviceDetails {
     ramGb: bigint;

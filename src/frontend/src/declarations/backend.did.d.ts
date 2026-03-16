@@ -27,11 +27,15 @@ export interface PaymentRequest {
 export type PaymentRequestStatus = { 'pending' : null } |
   { 'approved' : null };
 export interface SensitivitySettings {
-  'dpi' : bigint,
-  'deviceDetails' : DeviceDetails,
-  'gameBoosterTips' : string,
-  'sensitivity' : bigint,
+  'generalSensitivity' : bigint,
+  'noScopeSensitivity' : bigint,
+  'redDotSensitivity' : bigint,
+  'scope2xSensitivity' : bigint,
+  'scope4xSensitivity' : bigint,
+  'awmScopeSensitivity' : bigint,
   'fireButtonSize' : bigint,
+  'gameBoosterTips' : string,
+  'deviceDetails' : DeviceDetails,
 }
 export interface UserApprovalInfo {
   'status' : ApprovalStatus,

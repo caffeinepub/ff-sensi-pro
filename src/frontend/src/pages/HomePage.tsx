@@ -8,16 +8,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useSubmitDeviceDetails } from "@/hooks/useQueries";
+import { calculateSensitivity, saveResult } from "@/utils/sensitivityCalc";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  Cpu,
-  Crosshair,
-  Loader2,
-  MemoryStick,
-  Monitor,
-  Zap,
-} from "lucide-react";
+import { Cpu, Crosshair, MemoryStick, Monitor, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -27,37 +20,33 @@ export default function HomePage() {
   const [ram, setRam] = useState("");
   const [deviceModel, setDeviceModel] = useState("");
   const [screenSize, setScreenSize] = useState("");
-  const submitDevice = useSubmitDeviceDetails();
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const ramNum = Number.parseInt(ram);
-    const screenNum = Number.parseFloat(screenSize);
+    const screenNum = Number.parseInt(screenSize);
 
-    if (ramNum < 1 || ramNum > 16) {
-      toast.error("RAM must be between 1 and 16 GB");
+    if (ramNum < 1 || ramNum > 64) {
+      toast.error("RAM must be between 1 and 64 GB");
       return;
     }
-    if (screenNum < 4 || screenNum > 8) {
-      toast.error("Screen size must be between 4 and 8 inches");
+    if (screenNum < 19 || screenNum > 34) {
+      toast.error("Monitor size must be between 19 and 34 inches");
       return;
     }
     if (!deviceModel.trim()) {
-      toast.error("Please enter your device model");
+      toast.error("Please enter your PC model");
       return;
     }
 
-    try {
-      await submitDevice.mutateAsync({
-        ramGb: BigInt(ramNum),
-        screenSizeInches: BigInt(Math.round(screenNum)),
-        deviceModel: deviceModel.trim(),
-      });
-      toast.success("Device details submitted!");
-      navigate({ to: "/results" });
-    } catch {
-      toast.error("Failed to submit device details. Please try again.");
-    }
+    const result = calculateSensitivity({
+      ramGb: ramNum,
+      screenSizeInches: screenNum,
+      deviceModel: deviceModel.trim(),
+    });
+    saveResult(result);
+    toast.success("PC details submitted!");
+    navigate({ to: "/results" });
   }
 
   return (
@@ -82,8 +71,8 @@ export default function HomePage() {
               <span className="text-foreground">THE BATTLEFIELD</span>
             </h1>
             <p className="text-muted-foreground text-lg max-w-md">
-              Get your perfect Free Fire sensitivity settings based on your
-              device
+              Get your perfect Free Fire PC sensitivity settings based on your
+              computer specs
             </p>
           </motion.div>
         </div>
@@ -102,11 +91,11 @@ export default function HomePage() {
                   <Crosshair className="w-5 h-5 text-primary" />
                 </div>
                 <CardTitle className="font-display font-700 text-2xl">
-                  Device Details
+                  PC Details
                 </CardTitle>
               </div>
               <CardDescription className="text-muted-foreground">
-                Enter your device specs to calculate your optimal sensitivity
+                Enter your PC specs to calculate your optimal sensitivity
                 settings
               </CardDescription>
             </CardHeader>
@@ -124,8 +113,8 @@ export default function HomePage() {
                     id="ram"
                     type="number"
                     min={1}
-                    max={16}
-                    placeholder="e.g. 4, 6, 8, 12..."
+                    max={64}
+                    placeholder="e.g. 4, 8, 16, 32..."
                     value={ram}
                     onChange={(e) => setRam(e.target.value)}
                     className="bg-input/60 border-border focus:border-primary focus:ring-primary/30"
@@ -133,7 +122,7 @@ export default function HomePage() {
                     data-ocid="device_form.input"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Supported range: 1-16 GB
+                    Supported range: 1-64 GB
                   </p>
                 </div>
 
@@ -143,12 +132,12 @@ export default function HomePage() {
                     className="flex items-center gap-2 text-sm font-medium"
                   >
                     <Cpu className="w-4 h-4 text-primary" />
-                    Device Model
+                    PC Model
                   </Label>
                   <Input
                     id="deviceModel"
                     type="text"
-                    placeholder="e.g. Samsung Galaxy A54, Redmi Note 12..."
+                    placeholder="e.g. Dell Inspiron, HP Pavilion, ASUS ROG, Lenovo IdeaPad..."
                     value={deviceModel}
                     onChange={(e) => setDeviceModel(e.target.value)}
                     className="bg-input/60 border-border focus:border-primary focus:ring-primary/30"
@@ -163,15 +152,14 @@ export default function HomePage() {
                     className="flex items-center gap-2 text-sm font-medium"
                   >
                     <Monitor className="w-4 h-4 text-primary" />
-                    Screen Size (inches)
+                    Monitor Size (inches)
                   </Label>
                   <Input
                     id="screenSize"
                     type="number"
-                    min={4}
-                    max={8}
-                    step={0.1}
-                    placeholder="e.g. 6.4, 6.7..."
+                    min={19}
+                    max={34}
+                    placeholder="e.g. 21, 24, 27, 32..."
                     value={screenSize}
                     onChange={(e) => setScreenSize(e.target.value)}
                     className="bg-input/60 border-border focus:border-primary focus:ring-primary/30"
@@ -179,28 +167,18 @@ export default function HomePage() {
                     data-ocid="device_form.input"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Supported range: 4-8 inches
+                    Supported range: 19-34 inches
                   </p>
                 </div>
 
                 <Button
                   type="submit"
                   size="lg"
-                  disabled={submitDevice.isPending}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-display font-700 text-base tracking-wide glow-primary transition-all duration-300"
                   data-ocid="device_form.submit_button"
                 >
-                  {submitDevice.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                      Calculating...
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="mr-2 w-4 h-4" />
-                      Calculate My Settings
-                    </>
-                  )}
+                  <Zap className="mr-2 w-4 h-4" />
+                  Calculate My Settings
                 </Button>
               </form>
             </CardContent>
@@ -211,11 +189,10 @@ export default function HomePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="mt-10 grid grid-cols-3 gap-4"
+          className="mt-10 grid grid-cols-2 gap-4"
         >
           {[
-            { icon: "🎯", label: "Sensitivity", desc: "Up to 200" },
-            { icon: "🖱️", label: "DPI", desc: "Up to 1000" },
+            { icon: "🎯", label: "Sensitivity", desc: "Below 70 for PC" },
             { icon: "🔥", label: "Fire Button", desc: "Up to size 50" },
           ].map((item) => (
             <div

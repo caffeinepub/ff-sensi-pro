@@ -1,24 +1,20 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useGetSensitivitySettings } from "@/hooks/useQueries";
+import { type SensitivityResult, loadResult } from "@/utils/sensitivityCalc";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Cpu, Monitor, Target, Unlock, Zap } from "lucide-react";
+import { Cpu, Monitor, Unlock } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-function StatCard({
+function SensCard({
   label,
   value,
-  unit,
-  icon,
+  emoji,
   delay,
 }: {
   label: string;
-  value: bigint;
-  unit: string;
-  icon: React.ReactNode;
+  value: number;
+  emoji: string;
   delay: number;
 }) {
   return (
@@ -29,15 +25,14 @@ function StatCard({
     >
       <Card className="card-glass border-primary/20 text-center overflow-hidden relative">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
-        <CardContent className="pt-6 pb-4 relative">
-          <div className="mb-2 text-primary/70 flex justify-center">{icon}</div>
-          <div className="font-display font-800 text-5xl text-primary text-glow stat-number mb-1">
-            {value.toString()}
+        <CardContent className="pt-5 pb-4 relative">
+          <div className="mb-1 text-2xl">{emoji}</div>
+          <div className="font-display font-800 text-4xl text-primary text-glow stat-number mb-1">
+            {value}
           </div>
-          <div className="text-xs text-muted-foreground uppercase tracking-widest mb-1">
-            {unit}
+          <div className="font-medium text-xs text-foreground/70 uppercase tracking-widest">
+            {label}
           </div>
-          <div className="font-medium text-sm text-foreground/80">{label}</div>
         </CardContent>
       </Card>
     </motion.div>
@@ -45,32 +40,28 @@ function StatCard({
 }
 
 export default function ResultsPage() {
-  const { data: settings, isLoading } = useGetSensitivitySettings();
   const navigate = useNavigate();
+  const [settings, setSettings] = useState<SensitivityResult | null>(null);
 
   useEffect(() => {
-    if (!isLoading && !settings) {
+    const result = loadResult();
+    if (!result) {
       navigate({ to: "/" });
+    } else {
+      setSettings(result);
     }
-  }, [isLoading, settings, navigate]);
-
-  if (isLoading) {
-    return (
-      <div
-        className="container mx-auto px-4 py-16 max-w-4xl"
-        data-ocid="results.panel"
-      >
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Skeleton className="h-40 rounded-lg" />
-          <Skeleton className="h-40 rounded-lg" />
-          <Skeleton className="h-40 rounded-lg" />
-          <Skeleton className="h-40 rounded-lg" />
-        </div>
-      </div>
-    );
-  }
+  }, [navigate]);
 
   if (!settings) return null;
+
+  const sensitivities = [
+    { label: "General", value: settings.generalSensitivity, emoji: "🎯" },
+    { label: "No Scope", value: settings.noScopeSensitivity, emoji: "🔫" },
+    { label: "Red Dot", value: settings.redDotSensitivity, emoji: "🔴" },
+    { label: "2x Scope", value: settings.scope2xSensitivity, emoji: "🔭" },
+    { label: "4x Scope", value: settings.scope4xSensitivity, emoji: "🏹" },
+    { label: "AWM Scope", value: settings.awmScopeSensitivity, emoji: "🎖️" },
+  ];
 
   return (
     <div
@@ -83,7 +74,7 @@ export default function ResultsPage() {
         className="mb-10 text-center"
       >
         <h1 className="font-display font-800 text-4xl sm:text-5xl mb-3">
-          <span className="text-foreground">Your </span>
+          <span className="text-foreground">Your PC </span>
           <span className="text-primary text-glow">Sensitivity</span>
           <span className="text-foreground"> Settings</span>
         </h1>
@@ -96,62 +87,69 @@ export default function ResultsPage() {
         </Badge>
       </motion.div>
 
-      {settings.deviceDetails && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="mb-8 p-4 rounded-lg card-glass border border-border/50 flex flex-wrap gap-4 text-sm"
-        >
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Cpu className="w-4 h-4 text-primary/70" />
-            <span className="font-medium text-foreground">
-              {settings.deviceDetails.deviceModel}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <span>RAM: </span>
-            <span className="font-medium text-foreground">
-              {settings.deviceDetails.ramGb.toString()} GB
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Monitor className="w-4 h-4 text-primary/70" />
-            <span className="font-medium text-foreground">
-              {settings.deviceDetails.screenSizeInches.toString()}&quot;
-            </span>
-          </div>
-        </motion.div>
-      )}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1 }}
+        className="mb-8 p-4 rounded-lg card-glass border border-border/50 flex flex-wrap gap-4 text-sm"
+      >
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Cpu className="w-4 h-4 text-primary/70" />
+          <span className="font-medium text-foreground">
+            {settings.deviceDetails.deviceModel}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <span>RAM: </span>
+          <span className="font-medium text-foreground">
+            {settings.deviceDetails.ramGb} GB
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Monitor className="w-4 h-4 text-primary/70" />
+          <span className="font-medium text-foreground">
+            {settings.deviceDetails.screenSizeInches}&quot; Monitor
+          </span>
+        </div>
+      </motion.div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
-        <StatCard
-          label="Sensitivity"
-          value={settings.sensitivity}
-          unit="sens"
-          icon={<Target className="w-5 h-5" />}
-          delay={0.1}
-        />
-        <StatCard
-          label="DPI"
-          value={settings.dpi}
-          unit="dpi"
-          icon={<Zap className="w-5 h-5" />}
-          delay={0.2}
-        />
-        <StatCard
-          label="Fire Button Size"
-          value={settings.fireButtonSize}
-          unit="size"
-          icon={<span className="text-lg">🔥</span>}
-          delay={0.3}
-        />
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+        {sensitivities.map((s, i) => (
+          <SensCard
+            key={s.label}
+            label={s.label}
+            value={s.value}
+            emoji={s.emoji}
+            delay={0.1 + i * 0.05}
+          />
+        ))}
       </div>
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.45 }}
+        className="mb-6"
+      >
+        <Card className="card-glass border-accent/30 text-center overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent" />
+          <CardContent className="pt-5 pb-4 relative">
+            <div className="mb-1 text-2xl">🔥</div>
+            <div className="font-display font-800 text-5xl text-accent text-glow stat-number mb-1">
+              {settings.fireButtonSize}
+            </div>
+            <div className="font-medium text-xs text-foreground/70 uppercase tracking-widest">
+              Fire Button Size
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
+        transition={{ delay: 0.5 }}
+        className="mb-8"
       >
         <Card className="card-glass border-accent/20">
           <CardHeader className="pb-3">
@@ -168,14 +166,22 @@ export default function ResultsPage() {
         </Card>
       </motion.div>
 
-      <div className="mt-8 text-center">
-        <Link
-          to="/"
-          className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
-          data-ocid="results.link"
-        >
-          ← Recalculate with different device
-        </Link>
+      <div className="mt-8 text-center space-y-4">
+        <div>
+          <Link
+            to="/"
+            className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
+            data-ocid="results.link"
+          >
+            ← Recalculate with different PC
+          </Link>
+        </div>
+        <p className="text-xs text-muted-foreground/50 tracking-widest uppercase">
+          Created by{" "}
+          <span className="text-muted-foreground/80 font-semibold">
+            ZEESHAN ASSAD
+          </span>
+        </p>
       </div>
     </div>
   );
