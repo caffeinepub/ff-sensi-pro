@@ -1,244 +1,221 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useIsApproved, useSubmitPaymentRequest } from "@/hooks/useQueries";
-import { useNavigate } from "@tanstack/react-router";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { submitPaymentRequest } from "@/utils/localBackend";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
-  CheckCircle2,
-  Clock,
-  Copy,
-  IndianRupee,
+  ArrowLeft,
+  CheckCircle,
+  CreditCard,
   Loader2,
-  Shield,
+  Smartphone,
 } from "lucide-react";
-import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 import { toast } from "sonner";
 
-const UPI_ID = "9103007881";
-const AMOUNT = 50;
-const UPI_URL = `upi://pay?pa=${UPI_ID}@upi&pn=FF%20Sensi%20Pro&am=${AMOUNT}&cu=INR`;
-const QR_API_URL = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(UPI_URL)}&bgcolor=0a0a0f&color=ff6b00&format=png`;
-
-const PENDING_KEY = "ff_sensi_payment_pending";
+const PACK_INFO: Record<
+  number,
+  { name: string; price: number; headshot: string; color: string }
+> = {
+  1: { name: "Basic Pack", price: 50, headshot: "50%", color: "text-primary" },
+  2: { name: "Pro Pack", price: 250, headshot: "70%", color: "text-accent" },
+  3: {
+    name: "Elite Pack",
+    price: 500,
+    headshot: "100%",
+    color: "text-[oklch(0.82_0.17_85)]",
+  },
+};
 
 export default function PaymentPage() {
+  const search = useSearch({ strict: false }) as { pack?: string | number };
   const navigate = useNavigate();
-  const {
-    data: isApproved,
-    isLoading: approvalLoading,
-    refetch,
-  } = useIsApproved();
-  const submitPayment = useSubmitPaymentRequest();
-  const [hasPaid, setHasPaid] = useState(
-    () => !!localStorage.getItem(PENDING_KEY),
-  );
-  const [qrLoaded, setQrLoaded] = useState(false);
+  const packId = Number(search.pack) as 1 | 2 | 3;
+  const pack = PACK_INFO[packId] || PACK_INFO[1];
 
-  useEffect(() => {
-    if (isApproved) {
-      localStorage.removeItem(PENDING_KEY);
-      navigate({ to: "/" });
+  const [name, setName] = useState("");
+  const [txnId, setTxnId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !txnId.trim()) {
+      toast.error("Please fill in all fields");
+      return;
     }
-  }, [isApproved, navigate]);
-
-  // Poll for approval if waiting
-  useEffect(() => {
-    if (!hasPaid) return;
-    const interval = setInterval(() => {
-      refetch();
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [hasPaid, refetch]);
-
-  async function handlePaid() {
+    setLoading(true);
     try {
-      await submitPayment.mutateAsync("upi-self-declared");
-      localStorage.setItem(PENDING_KEY, "1");
-      setHasPaid(true);
-      toast.success("Payment request submitted! Waiting for admin approval.");
-    } catch {
-      // Already submitted or other error - still mark as pending
-      localStorage.setItem(PENDING_KEY, "1");
-      setHasPaid(true);
+      submitPaymentRequest(name.trim(), packId || 1, txnId.trim());
+      setSubmitted(true);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to submit. Please try again.");
+    } finally {
+      setLoading(false);
     }
-  }
-
-  function copyUpiId() {
-    navigator.clipboard.writeText(UPI_ID);
-    toast.success("UPI ID copied!");
-  }
-
-  if (approvalLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (hasPaid) {
-    return (
-      <div className="container mx-auto px-4 py-20 max-w-md">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4 }}
-          className="text-center"
-          data-ocid="payment.success_state"
-        >
-          <div className="w-24 h-24 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center mx-auto mb-6">
-            <Clock className="w-10 h-10 text-primary animate-pulse" />
-          </div>
-          <h2 className="font-display font-800 text-3xl mb-3 text-foreground">
-            Waiting for Approval
-          </h2>
-          <p className="text-muted-foreground mb-6">
-            Your payment request has been submitted. The admin will review and
-            unlock your access shortly.
-          </p>
-          <Card className="card-glass border-primary/20 mb-6">
-            <CardContent className="pt-5 pb-5">
-              <div className="flex items-center gap-3 text-sm">
-                <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center flex-shrink-0">
-                  <CheckCircle2 className="w-4 h-4 text-accent" />
-                </div>
-                <div className="text-left">
-                  <div className="font-medium text-foreground">
-                    Payment request sent
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Admin will approve your access
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <p className="text-xs text-muted-foreground">
-            This page will automatically refresh when your access is approved.
-          </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => refetch()}
-            className="mt-4 text-muted-foreground hover:text-foreground"
-            data-ocid="payment.secondary_button"
-          >
-            Check Status
-          </Button>
-        </motion.div>
-      </div>
-    );
   }
 
   return (
-    <div className="container mx-auto px-4 py-10 max-w-md">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-7 h-7 text-primary" />
-          </div>
-          <h1 className="font-display font-800 text-3xl mb-2">
-            <span className="text-primary text-glow">Unlock</span>{" "}
-            <span className="text-foreground">Premium Access</span>
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Pay Rs {AMOUNT} once to get your personalised Free Fire sensitivity
-            settings
-          </p>
-        </div>
-
-        {/* Price badge */}
-        <div className="flex justify-center mb-6">
-          <div className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-primary/15 border border-primary/30">
-            <IndianRupee className="w-5 h-5 text-primary" />
-            <span className="font-display font-800 text-2xl text-primary">
-              {AMOUNT}
-            </span>
-            <span className="text-muted-foreground text-sm ml-1">one-time</span>
-          </div>
-        </div>
-
-        {/* QR Card */}
-        <Card
-          className="card-glass border-primary/20 shadow-glow mb-6"
-          data-ocid="payment.card"
+    <div className="min-h-screen py-12 px-4 flex flex-col items-center">
+      <div className="w-full max-w-lg">
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/" })}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors text-sm"
+          data-ocid="payment.link"
         >
-          <CardHeader className="pb-2 text-center">
-            <CardTitle className="font-display font-700 text-lg">
-              Scan to Pay
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Use any UPI app: PhonePe, GPay, Paytm, BHIM
-            </p>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-4">
-            {/* QR Code */}
-            <div className="relative w-[220px] h-[220px] rounded-xl overflow-hidden border-2 border-primary/30 bg-background/50">
-              {!qrLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
-              )}
-              <img
-                src={QR_API_URL}
-                alt="UPI QR Code"
-                width={220}
-                height={220}
-                className={`w-full h-full object-contain transition-opacity duration-300 ${qrLoaded ? "opacity-100" : "opacity-0"}`}
-                onLoad={() => setQrLoaded(true)}
-                data-ocid="payment.canvas_target"
-              />
-            </div>
+          <ArrowLeft className="w-4 h-4" />
+          Back to packs
+        </button>
 
-            {/* UPI ID */}
-            <div className="w-full">
-              <p className="text-xs text-muted-foreground text-center mb-2">
-                Or pay directly to UPI ID
+        <AnimatePresence mode="wait">
+          {submitted ? (
+            <motion.div
+              key="success"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-12"
+              data-ocid="payment.success_state"
+            >
+              <CheckCircle className="w-16 h-16 text-primary mx-auto mb-4" />
+              <h2 className="font-display font-700 text-2xl mb-3">
+                Payment Submitted!
+              </h2>
+              <p className="text-muted-foreground mb-6">
+                Admin will review your payment and create your login credentials
+                shortly. Check back in a few minutes.
               </p>
-              <button
-                type="button"
-                onClick={copyUpiId}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-muted/40 border border-border hover:border-primary/40 hover:bg-muted/60 transition-all group"
-                data-ocid="payment.secondary_button"
+              <Button
+                onClick={() => navigate({ to: "/login" })}
+                className="bg-primary text-primary-foreground"
+                data-ocid="payment.primary_button"
               >
-                <span className="font-mono text-sm text-foreground font-medium">
-                  {UPI_ID}@upi
-                </span>
-                <Copy className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* I have paid button */}
-        <Button
-          size="lg"
-          onClick={handlePaid}
-          disabled={submitPayment.isPending}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-display font-700 text-base tracking-wide glow-primary transition-all duration-300"
-          data-ocid="payment.primary_button"
-        >
-          {submitPayment.isPending ? (
-            <>
-              <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-              Submitting...
-            </>
+                Go to Login
+              </Button>
+            </motion.div>
           ) : (
-            <>
-              <CheckCircle2 className="mr-2 w-4 h-4" />I have Paid
-            </>
-          )}
-        </Button>
+            <motion.div
+              key="form"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              {/* Pack Summary */}
+              <Card className="mb-6 border-border">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm text-muted-foreground uppercase tracking-wider">
+                    Selected Pack
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p
+                        className={`font-display font-700 text-xl ${pack.color}`}
+                      >
+                        {pack.name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        🎯 {pack.headshot} Headshot Rate
+                      </p>
+                    </div>
+                    <div
+                      className={`text-3xl font-display font-800 ${pack.color}`}
+                    >
+                      ₹{pack.price}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-        <p className="text-xs text-muted-foreground text-center mt-4">
-          After clicking, wait for admin to verify and unlock your access.
-        </p>
-      </motion.div>
+              {/* UPI Payment Instructions */}
+              <Card className="mb-6 border-primary/30 bg-primary/5">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Smartphone className="w-5 h-5 text-primary" />
+                    Payment Instructions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Pay via{" "}
+                    <span className="text-foreground font-medium">
+                      Google Pay
+                    </span>{" "}
+                    or{" "}
+                    <span className="text-foreground font-medium">PhonePe</span>{" "}
+                    to:
+                  </p>
+                  <div className="bg-background rounded-lg p-4 border border-border text-center">
+                    <p className="text-xs text-muted-foreground mb-1">
+                      UPI ID / Number
+                    </p>
+                    <p className="font-mono font-700 text-xl text-primary tracking-wider">
+                      9103007881
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    After payment, enter your name and UPI transaction ID below.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Form */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <CreditCard className="w-5 h-5 text-primary" />
+                    Submit Payment Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Your Name</Label>
+                      <Input
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Enter your full name"
+                        required
+                        data-ocid="payment.input"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="txn">UPI Transaction ID</Label>
+                      <Input
+                        id="txn"
+                        value={txnId}
+                        onChange={(e) => setTxnId(e.target.value)}
+                        placeholder="e.g. 123456789012"
+                        required
+                        data-ocid="payment.input"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-primary text-primary-foreground"
+                      data-ocid="payment.submit_button"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
+                          Submitting...
+                        </>
+                      ) : (
+                        "Submit Payment Request"
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

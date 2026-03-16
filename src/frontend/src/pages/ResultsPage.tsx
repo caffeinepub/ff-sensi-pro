@@ -1,187 +1,305 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { type SensitivityResult, loadResult } from "@/utils/sensitivityCalc";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Cpu, Monitor, Unlock } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { loadResult } from "@/utils/sensitivityCalc";
+import type { SensitivityResult } from "@/utils/sensitivityCalc";
+import { useNavigate } from "@tanstack/react-router";
+import {
+  Crown,
+  LogOut,
+  Settings,
+  Shield,
+  Star,
+  Target,
+  Zap,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
-function SensCard({
-  label,
-  value,
-  emoji,
-  delay,
-}: {
-  label: string;
-  value: number;
-  emoji: string;
-  delay: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4, delay }}
-    >
-      <Card className="card-glass border-primary/20 text-center overflow-hidden relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
-        <CardContent className="pt-5 pb-4 relative">
-          <div className="mb-1 text-2xl">{emoji}</div>
-          <div className="font-display font-800 text-4xl text-primary text-glow stat-number mb-1">
-            {value}
-          </div>
-          <div className="font-medium text-xs text-foreground/70 uppercase tracking-widest">
-            {label}
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
+interface FFUser {
+  username: string;
+  pack: number;
+}
+
+const PACK_NAMES: Record<number, string> = {
+  1: "Basic Pack",
+  2: "Pro Pack",
+  3: "Elite Pack",
+};
+
+const PACK_ICONS: Record<
+  number,
+  React.ComponentType<{ className?: string }>
+> = {
+  1: Zap,
+  2: Star,
+  3: Crown,
+};
+
+const SENSITIVITY_ITEMS = [
+  { key: "generalSensitivity", label: "General", icon: "🎯" },
+  { key: "noScopeSensitivity", label: "No Scope", icon: "🔫" },
+  { key: "redDotSensitivity", label: "Red Dot", icon: "🔴" },
+  { key: "scope2xSensitivity", label: "2x Scope", icon: "🔭" },
+  { key: "scope4xSensitivity", label: "4x Scope", icon: "🎯" },
+  { key: "awmScopeSensitivity", label: "AWM Scope", icon: "⚡" },
+] as const;
+
+function calcDPI(ram: number): number {
+  if (ram >= 16) return 800;
+  if (ram >= 8) return 600;
+  if (ram >= 4) return 400;
+  return 400;
 }
 
 export default function ResultsPage() {
   const navigate = useNavigate();
-  const [settings, setSettings] = useState<SensitivityResult | null>(null);
+  const [user, setUser] = useState<FFUser | null>(null);
+  const [result, setResult] = useState<SensitivityResult | null>(null);
 
   useEffect(() => {
-    const result = loadResult();
-    if (!result) {
+    const rawUser = localStorage.getItem("ff_user");
+    const res = loadResult();
+    if (!rawUser || !res) {
       navigate({ to: "/" });
-    } else {
-      setSettings(result);
+      return;
     }
+    setUser(JSON.parse(rawUser) as FFUser);
+    setResult(res);
   }, [navigate]);
 
-  if (!settings) return null;
+  function handleLogout() {
+    localStorage.removeItem("ff_user");
+    localStorage.removeItem("ff_sensi_result");
+    navigate({ to: "/" });
+  }
 
-  const sensitivities = [
-    { label: "General", value: settings.generalSensitivity, emoji: "🎯" },
-    { label: "No Scope", value: settings.noScopeSensitivity, emoji: "🔫" },
-    { label: "Red Dot", value: settings.redDotSensitivity, emoji: "🔴" },
-    { label: "2x Scope", value: settings.scope2xSensitivity, emoji: "🔭" },
-    { label: "4x Scope", value: settings.scope4xSensitivity, emoji: "🏹" },
-    { label: "AWM Scope", value: settings.awmScopeSensitivity, emoji: "🎖️" },
-  ];
+  if (!user || !result) return null;
+
+  const pack = user.pack;
+  const PackIcon = PACK_ICONS[pack] || Zap;
+  const dpi = calcDPI(result.deviceDetails.ramGb);
 
   return (
-    <div
-      className="container mx-auto px-4 py-12 max-w-4xl"
-      data-ocid="results.panel"
-    >
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-10 text-center"
-      >
-        <h1 className="font-display font-800 text-4xl sm:text-5xl mb-3">
-          <span className="text-foreground">Your PC </span>
-          <span className="text-primary text-glow">Sensitivity</span>
-          <span className="text-foreground"> Settings</span>
-        </h1>
-        <Badge
-          variant="outline"
-          className="border-accent/60 text-accent gap-1.5"
+    <div className="min-h-screen py-10 px-4">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8"
         >
-          <Unlock className="w-3.5 h-3.5" />
-          Free Access
-        </Badge>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.1 }}
-        className="mb-8 p-4 rounded-lg card-glass border border-border/50 flex flex-wrap gap-4 text-sm"
-      >
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Cpu className="w-4 h-4 text-primary/70" />
-          <span className="font-medium text-foreground">
-            {settings.deviceDetails.deviceModel}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <span>RAM: </span>
-          <span className="font-medium text-foreground">
-            {settings.deviceDetails.ramGb} GB
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Monitor className="w-4 h-4 text-primary/70" />
-          <span className="font-medium text-foreground">
-            {settings.deviceDetails.screenSizeInches}&quot; Monitor
-          </span>
-        </div>
-      </motion.div>
-
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        {sensitivities.map((s, i) => (
-          <SensCard
-            key={s.label}
-            label={s.label}
-            value={s.value}
-            emoji={s.emoji}
-            delay={0.1 + i * 0.05}
-          />
-        ))}
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.45 }}
-        className="mb-6"
-      >
-        <Card className="card-glass border-accent/30 text-center overflow-hidden relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent" />
-          <CardContent className="pt-5 pb-4 relative">
-            <div className="mb-1 text-2xl">🔥</div>
-            <div className="font-display font-800 text-5xl text-accent text-glow stat-number mb-1">
-              {settings.fireButtonSize}
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="font-display font-800 text-2xl text-primary">
+                Your Sensitivity Settings
+              </h1>
+              <Badge
+                className={`flex items-center gap-1 ${
+                  pack === 3
+                    ? "bg-[oklch(0.82_0.17_85)] text-black"
+                    : pack === 2
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-primary text-primary-foreground"
+                }`}
+              >
+                <PackIcon className="w-3 h-3" />
+                {PACK_NAMES[pack] || "Basic Pack"}
+              </Badge>
             </div>
-            <div className="font-medium text-xs text-foreground/70 uppercase tracking-widest">
-              Fire Button Size
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="mb-8"
-      >
-        <Card className="card-glass border-accent/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="font-display font-700 text-lg flex items-center gap-2">
-              <span className="text-xl">⚡</span>
-              <span className="text-accent">Game Booster Tips</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-foreground/85 leading-relaxed">
-              {settings.gameBoosterTips}
+            <p className="text-sm text-muted-foreground">
+              PC: {result.deviceDetails.deviceModel} ·{" "}
+              {result.deviceDetails.ramGb}GB RAM ·{" "}
+              {result.deviceDetails.screenSizeInches}&quot; Monitor
             </p>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <div className="mt-8 text-center space-y-4">
-        <div>
-          <Link
-            to="/"
-            className="text-sm text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
-            data-ocid="results.link"
+          </div>
+          <Button
+            variant="outline"
+            onClick={handleLogout}
+            className="shrink-0 flex items-center gap-2"
+            data-ocid="results.button"
           >
-            ← Recalculate with different PC
-          </Link>
-        </div>
-        <p className="text-xs text-muted-foreground/50 tracking-widest uppercase">
-          Created by{" "}
-          <span className="text-muted-foreground/80 font-semibold">
-            ZEESHAN ASSAD
-          </span>
-        </p>
+            <LogOut className="w-4 h-4" />
+            Logout
+          </Button>
+        </motion.div>
+
+        {/* Sensitivity Settings */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="mb-5">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Settings className="w-5 h-5 text-primary" />
+                Sensitivity Values
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {SENSITIVITY_ITEMS.map(({ key, label, icon }) => (
+                  <div
+                    key={key}
+                    className="bg-secondary/50 rounded-lg p-3 text-center border border-border/60"
+                    data-ocid="results.card"
+                  >
+                    <div className="text-lg mb-1">{icon}</div>
+                    <div className="font-mono font-700 text-xl text-primary stat-number">
+                      {result[key]}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <Separator className="my-4" />
+
+              <div className="flex items-center justify-between bg-secondary/40 rounded-lg p-3">
+                <span className="text-sm text-muted-foreground">
+                  🔘 Fire Button Size
+                </span>
+                <span className="font-mono font-700 text-lg text-accent stat-number">
+                  {result.fireButtonSize}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Pack 1+: Headshot Rate & Lag Reduce */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="mb-5 border-primary/30">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Target className="w-5 h-5 text-primary" />
+                Headshot & Performance
+                <Badge
+                  className={`ml-auto ${
+                    pack >= 3
+                      ? "bg-[oklch(0.82_0.17_85)] text-black"
+                      : pack >= 2
+                        ? "bg-accent text-accent-foreground"
+                        : "bg-primary text-primary-foreground"
+                  }`}
+                >
+                  🎯 {pack >= 3 ? "100%" : pack >= 2 ? "70%" : "50%"} Headshot
+                  Rate
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <p className="text-sm font-medium text-primary mb-1">
+                  ⚡ Lag Reduce Tip
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Close all background apps before launching Free Fire emulator.
+                  Disable Windows game mode and set emulator to high priority in
+                  Task Manager.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Pack 2+: Device Optimization */}
+        {pack >= 2 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card className="mb-5 border-accent/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Shield className="w-5 h-5 text-accent" />
+                  Device Optimization
+                  <Badge className="ml-auto bg-accent text-accent-foreground">
+                    Pro
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="p-3 rounded-lg bg-accent/5 border border-accent/20">
+                  <p className="text-sm font-medium text-accent mb-1">
+                    🖥️ PC Optimization Tips
+                  </p>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Update GPU drivers to latest version</li>
+                    <li>• Set power plan to "High Performance" in Windows</li>
+                    <li>• Disable unnecessary startup programs</li>
+                    <li>
+                      • Set emulator CPU priority to "High" in Task Manager
+                    </li>
+                    <li>• Use wired internet connection for lower ping</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Pack 3: Game Booster + DPI */}
+        {pack >= 3 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card className="mb-5 border-[oklch(0.82_0.17_85/0.4)] bg-gradient-to-b from-[oklch(0.82_0.17_85/0.06)] to-card">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Crown className="w-5 h-5 text-[oklch(0.82_0.17_85)]" />
+                  Elite Features
+                  <Badge className="ml-auto bg-[oklch(0.82_0.17_85)] text-black">
+                    Elite
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="p-3 rounded-lg bg-[oklch(0.82_0.17_85/0.08)] border border-[oklch(0.82_0.17_85/0.2)]">
+                  <p className="text-sm font-medium text-[oklch(0.82_0.17_85)] mb-2">
+                    🚀 Game Booster Tips
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {result.gameBoosterTips}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-[oklch(0.82_0.17_85/0.08)] border border-[oklch(0.82_0.17_85/0.2)]">
+                  <div>
+                    <p className="text-sm font-medium text-[oklch(0.82_0.17_85)]">
+                      🖱️ Recommended DPI
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Based on your RAM ({result.deviceDetails.ramGb}GB)
+                    </p>
+                  </div>
+                  <span className="font-mono font-700 text-2xl text-[oklch(0.82_0.17_85)] stat-number">
+                    {dpi}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Credit */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="text-center text-sm text-muted-foreground mt-6"
+        >
+          Settings generated by{" "}
+          <span className="text-primary font-semibold">ZEESHAN ASSAD</span>
+        </motion.p>
       </div>
     </div>
   );

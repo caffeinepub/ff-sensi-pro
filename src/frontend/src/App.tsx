@@ -1,7 +1,9 @@
 import RootLayout from "@/components/RootLayout";
 import { Toaster } from "@/components/ui/sonner";
 import AdminPage from "@/pages/AdminPage";
-import HomePage from "@/pages/HomePage";
+import DevicePage from "@/pages/DevicePage";
+import LoginPage from "@/pages/LoginPage";
+import PackSelectionPage from "@/pages/PackSelectionPage";
 import PaymentPage from "@/pages/PaymentPage";
 import ResultsPage from "@/pages/ResultsPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -19,13 +21,25 @@ const rootRoute = createRootRoute({
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: HomePage,
+  component: PackSelectionPage,
 });
 
 const paymentRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/payment",
   component: PaymentPage,
+});
+
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/login",
+  component: LoginPage,
+});
+
+const deviceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/device",
+  component: DevicePage,
 });
 
 const resultsRoute = createRoute({
@@ -43,6 +57,8 @@ const adminRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   homeRoute,
   paymentRoute,
+  loginRoute,
+  deviceRoute,
   resultsRoute,
   adminRoute,
 ]);
