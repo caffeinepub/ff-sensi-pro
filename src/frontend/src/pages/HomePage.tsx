@@ -8,9 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useActor } from "@/hooks/useActor";
-import { useIsApproved, useSubmitDeviceDetails } from "@/hooks/useQueries";
+import { useSubmitDeviceDetails } from "@/hooks/useQueries";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Cpu,
@@ -21,25 +19,15 @@ import {
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { isFetching: actorFetching } = useActor();
-  const { data: isApproved, isLoading: approvalLoading } = useIsApproved();
   const [ram, setRam] = useState("");
   const [deviceModel, setDeviceModel] = useState("");
   const [screenSize, setScreenSize] = useState("");
   const submitDevice = useSubmitDeviceDetails();
-
-  const isChecking = actorFetching || approvalLoading;
-
-  useEffect(() => {
-    if (!isChecking && !isApproved) {
-      navigate({ to: "/payment" });
-    }
-  }, [isApproved, isChecking, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,15 +58,6 @@ export default function HomePage() {
     } catch {
       toast.error("Failed to submit device details. Please try again.");
     }
-  }
-
-  if (isChecking) {
-    return (
-      <div className="container mx-auto px-4 py-16 max-w-2xl space-y-4">
-        <Skeleton className="h-64 w-full" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    );
   }
 
   return (

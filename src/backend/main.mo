@@ -130,29 +130,22 @@ actor {
     };
   };
 
+  // Anyone can submit device details and get sensitivity settings
   public shared ({ caller }) func submitDeviceDetails(device : DeviceDetails) : async SensitivitySettings {
-    if (not (UserApproval.isApproved(approvalState, caller) or AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only approved users can submit device details");
-    };
-
     let settings = calculateSensitivity(device);
     settingsMap.add(caller, settings);
-
     settings;
   };
 
+  // Anyone can retrieve their sensitivity settings
   public query ({ caller }) func getSensitivitySettings() : async SensitivitySettings {
-    if (not (UserApproval.isApproved(approvalState, caller) or AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only approved users can retrieve sensitivity settings");
-    };
-
     switch (settingsMap.get(caller)) {
       case (null) { Runtime.trap("No sensitivity settings found. Please submit device details first.") };
       case (?settings) { settings };
     };
   };
 
-  // Anyone can submit a payment request (this is how users request access)
+  // Anyone can submit a payment request
   public shared ({ caller }) func submitPaymentRequest(paymentReference : Text) : async Nat {
     let request : PaymentRequest = {
       user = caller;

@@ -21,18 +21,18 @@ module {
     };
   };
 
-  // If no admin assigned yet and token matches, promote caller to admin (even if already registered).
+  // First principal that calls this function becomes admin, all other principals become users.
   public func initialize(state : AccessControlState, caller : Principal, adminToken : Text, userProvidedToken : Text) {
     if (caller.isAnonymous()) { return };
-    if (not state.adminAssigned and userProvidedToken == adminToken and userProvidedToken != "") {
-      state.userRoles.add(caller, #admin);
-      state.adminAssigned := true;
-      return;
-    };
     switch (state.userRoles.get(caller)) {
       case (?_) {};
       case (null) {
-        state.userRoles.add(caller, #user);
+        if (not state.adminAssigned and userProvidedToken == adminToken) {
+          state.userRoles.add(caller, #admin);
+          state.adminAssigned := true;
+        } else {
+          state.userRoles.add(caller, #user);
+        };
       };
     };
   };
